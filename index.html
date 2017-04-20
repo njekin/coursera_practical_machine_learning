@@ -221,7 +221,7 @@ url2 &lt;-<span class="st"> &quot;https://d396qusza40orc.cloudfront.net/predmach
 <span class="co"># download.file(url2, destfile = &quot;pml-testing.csv&quot;)</span>
 
 training &lt;-<span class="st"> </span><span class="kw">read_csv</span>(<span class="st">&quot;pml-training.csv&quot;</span>)
-validation &lt;-<span class="st"> </span><span class="kw">read_csv</span>(<span class="st">&quot;pml-testing.csv&quot;</span>)</code></pre></div>
+final_testing &lt;-<span class="st"> </span><span class="kw">read_csv</span>(<span class="st">&quot;pml-testing.csv&quot;</span>)</code></pre></div>
 </div>
 <div id="data-preprocessing-and-cleaning" class="section level1">
 <h1><span class="header-section-number">3</span> Data Preprocessing and Cleaning</h1>
@@ -239,7 +239,7 @@ validation &lt;-<span class="st"> </span><span class="kw">read_csv</span>(<span 
 
 ##ensure all numeric columns are indeed numeric
 training[, <span class="dv">7</span>:<span class="dv">159</span>] &lt;-<span class="st"> </span><span class="kw">lapply</span>(training[,<span class="dv">7</span>:<span class="dv">159</span>], as.numeric)
-validation[, <span class="dv">7</span>:<span class="dv">159</span>] &lt;-<span class="st"> </span><span class="kw">lapply</span>(validation[,<span class="dv">7</span>:<span class="dv">159</span>], as.numeric)
+final_testing[, <span class="dv">7</span>:<span class="dv">159</span>] &lt;-<span class="st"> </span><span class="kw">lapply</span>(final_testing[,<span class="dv">7</span>:<span class="dv">159</span>], as.numeric)
 colnames_train &lt;-<span class="st"> </span><span class="kw">colnames</span>(training)
 
 
@@ -261,8 +261,8 @@ for (i in <span class="dv">1</span>:<span class="kw">length</span>(col_na)) {
 training &lt;-<span class="st"> </span>training[, !(<span class="kw">names</span>(training) %in%<span class="st"> </span>dp)]
 training &lt;-<span class="st"> </span>training[, <span class="dv">8</span>:<span class="kw">ncol</span>(training)]
 
-validation &lt;-<span class="st"> </span>validation[, !(<span class="kw">names</span>(validation) %in%<span class="st"> </span>dp)]
-validation &lt;-<span class="st"> </span>validation[, <span class="dv">8</span>:<span class="kw">ncol</span>(validation)]</code></pre></div>
+final_testing &lt;-<span class="st"> </span>final_testing[, !(<span class="kw">names</span>(final_testing) %in%<span class="st"> </span>dp)]
+final_testing &lt;-<span class="st"> </span>final_testing[, <span class="dv">8</span>:<span class="kw">ncol</span>(final_testing)]</code></pre></div>
 </div>
 <div id="partion-training-data" class="section level2">
 <h2><span class="header-section-number">3.2</span> Partion Training Data</h2>
@@ -404,6 +404,53 @@ md_rf_cv &lt;-<span class="st"> </span><span class="kw">readRDS</span>(<span cla
 ## Balanced Accuracy      0.9982   0.9937   0.9946   0.9919   0.9990</code></pre>
 <p>Well, the model built through 10 fold cross-validation has marginally higher accuracy (0.9934 vs 0.9932) versus the model built through bootstrap resampling. Hence I will use this model to continue on the test set.</p>
 </div>
+</div>
+<div id="predict-the-20-cases-for-quiz" class="section level1">
+<h1><span class="header-section-number">5</span> Predict the 20 cases for quiz</h1>
+<div class="sourceCode"><pre class="sourceCode r"><code class="sourceCode r">for (j in <span class="dv">1</span>:<span class="dv">20</span>) {
+  p &lt;-<span class="st"> </span><span class="kw">predict</span>(md_rf_cv, final_testing[j,])
+  <span class="kw">print</span>(p)
+}</code></pre></div>
+<pre><code>## [1] B
+## Levels: A B C D E
+## [1] A
+## Levels: A B C D E
+## [1] B
+## Levels: A B C D E
+## [1] A
+## Levels: A B C D E
+## [1] A
+## Levels: A B C D E
+## [1] E
+## Levels: A B C D E
+## [1] D
+## Levels: A B C D E
+## [1] B
+## Levels: A B C D E
+## [1] A
+## Levels: A B C D E
+## [1] A
+## Levels: A B C D E
+## [1] B
+## Levels: A B C D E
+## [1] C
+## Levels: A B C D E
+## [1] B
+## Levels: A B C D E
+## [1] A
+## Levels: A B C D E
+## [1] E
+## Levels: A B C D E
+## [1] E
+## Levels: A B C D E
+## [1] A
+## Levels: A B C D E
+## [1] B
+## Levels: A B C D E
+## [1] B
+## Levels: A B C D E
+## [1] B
+## Levels: A B C D E</code></pre>
 </div>
 
 

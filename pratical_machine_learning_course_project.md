@@ -81,7 +81,7 @@ url2 <- "https://d396qusza40orc.cloudfront.net/predmachlearn/pml-testing.csv"
 # download.file(url2, destfile = "pml-testing.csv")
 
 training <- read_csv("pml-training.csv")
-validation <- read_csv("pml-testing.csv")
+final_testing <- read_csv("pml-testing.csv")
 ```
 
 # Data Preprocessing and Cleaning
@@ -101,7 +101,7 @@ When looking at the data, it is obvious that many variables are mainly NAs and d
 
 ##ensure all numeric columns are indeed numeric
 training[, 7:159] <- lapply(training[,7:159], as.numeric)
-validation[, 7:159] <- lapply(validation[,7:159], as.numeric)
+final_testing[, 7:159] <- lapply(final_testing[,7:159], as.numeric)
 colnames_train <- colnames(training)
 
 
@@ -123,8 +123,8 @@ for (i in 1:length(col_na)) {
 training <- training[, !(names(training) %in% dp)]
 training <- training[, 8:ncol(training)]
 
-validation <- validation[, !(names(validation) %in% dp)]
-validation <- validation[, 8:ncol(validation)]
+final_testing <- final_testing[, !(names(final_testing) %in% dp)]
+final_testing <- final_testing[, 8:ncol(final_testing)]
 ```
 
 ## Partion Training Data
@@ -296,4 +296,56 @@ confusionMatrix(pred_cv, test$classe)
 
 Well, the model built through 10 fold cross-validation has marginally higher accuracy (0.9934 vs 0.9932) versus the model built through bootstrap resampling. Hence I will use this model to continue on the test set. 
 
+# Predict the 20 cases for quiz
+
+
+```r
+for (j in 1:20) {
+  p <- predict(md_rf_cv, final_testing[j,])
+  print(p)
+}
+```
+
+```
+## [1] B
+## Levels: A B C D E
+## [1] A
+## Levels: A B C D E
+## [1] B
+## Levels: A B C D E
+## [1] A
+## Levels: A B C D E
+## [1] A
+## Levels: A B C D E
+## [1] E
+## Levels: A B C D E
+## [1] D
+## Levels: A B C D E
+## [1] B
+## Levels: A B C D E
+## [1] A
+## Levels: A B C D E
+## [1] A
+## Levels: A B C D E
+## [1] B
+## Levels: A B C D E
+## [1] C
+## Levels: A B C D E
+## [1] B
+## Levels: A B C D E
+## [1] A
+## Levels: A B C D E
+## [1] E
+## Levels: A B C D E
+## [1] E
+## Levels: A B C D E
+## [1] A
+## Levels: A B C D E
+## [1] B
+## Levels: A B C D E
+## [1] B
+## Levels: A B C D E
+## [1] B
+## Levels: A B C D E
+```
 
