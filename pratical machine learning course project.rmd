@@ -1,0 +1,199 @@
+---
+title: "Pratical Machine Learning Course Project"
+author: "Jun Wang"
+date: "March 30, 2017"
+output: 
+  html_document: 
+    highlight: pygments
+    keep_md: yes
+    number_sections: yes
+    theme: journal
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+> This page is the submission for Coursera Pratical Machine Learning Course Project. 
+
+
+# Introduction
+## Background  
+
+Using devices such as Jawbone Up, Nike FuelBand, and Fitbit it is now possible to collect a large amount of data about personal activity relatively inexpensively. These type of devices are part of the quantified self movement – a group of enthusiasts who take measurements about themselves regularly to improve their health, to find patterns in their behavior, or because they are tech geeks. One thing that people regularly do is quantify how much of a particular activity they do, but they rarely quantify how well they do it. In this project, your goal will be to use data from accelerometers on the belt, forearm, arm, and dumbell of 6 participants. They were asked to perform barbell lifts correctly and incorrectly in 5 different ways. More information is available from the website here: http://groupware.les.inf.puc-rio.br/har (see the section on the Weight Lifting Exercise Dataset).  
+
+## Data  
+
+The training data for this project are available here:  
+
+https://d396qusza40orc.cloudfront.net/predmachlearn/pml-training.csv  
+
+The test data are available here:  
+
+https://d396qusza40orc.cloudfront.net/predmachlearn/pml-testing.csv  
+
+## Project Goal
+
+The goal of your project is to predict the manner in which they did the exercise. This is the "classe" variable in the training set. You may use any of the other variables to predict with. You should create a report describing how you built your model, how you used cross validation, what you think the expected out of sample error is, and why you made the choices you did. You will also use your prediction model to predict 20 different test cases.  
+
+
+# Getting the Data  
+```{r, message=FALSE, warning=FALSE}
+rm(list=ls())
+library(caret)
+library(tidyverse)
+sessionInfo()
+url1 <-"https://d396qusza40orc.cloudfront.net/predmachlearn/pml-training.csv"
+url2 <- "https://d396qusza40orc.cloudfront.net/predmachlearn/pml-testing.csv"
+
+# download.file(url1, destfile = "pml-training.csv")
+# download.file(url2, destfile = "pml-testing.csv")
+
+training <- read_csv("pml-training.csv")
+validation <- read_csv("pml-testing.csv")
+
+
+```
+
+# Data Preprocessing and Cleaning
+## Remove redundant variables
+When looking at the data, it is obvious that many variables are mainly NAs and do not carry any useful information. Therefore two things were done in preprocessing. One is coerece all columns that were not imported as numeric to be numeric, this will ensure the modelling function properly run. The second thing was removing columns with mainly NAs. This turns out removed ~110 variables. 
+
+```{r, message=FALSE, warning=FALSE}
+#str(training)
+
+# training$classe %>% as.factor %>% str
+# is.na(training$classe) %>% sum
+# complete.cases(training) %>% sum
+# t <- na.omit(training)
+
+
+
+##ensure all numeric columns are indeed numeric
+training[, 7:159] <- lapply(training[,7:159], as.numeric)
+validation[, 7:159] <- lapply(validation[,7:159], as.numeric)
+colnames_train <- colnames(training)
+
+
+# check the number of non-NAs in each column.
+check_NA <- function(x) {
+    as.vector(apply(x, 2, function(x) length(which(!is.na(x)))))
+}
+
+# find columns to remove
+col_na <- check_NA(training)
+dp <- c()
+for (i in 1:length(col_na)) {
+    if (col_na[i] < nrow(training)) {
+        dp <- c(dp, colnames_train[i])
+    }
+}
+
+# remove NA columns and the first 7 columns
+training <- training[, !(names(training) %in% dp)]
+training <- training[, 8:ncol(training)]
+
+validation <- validation[, !(names(validation) %in% dp)]
+validation <- validation[, 8:ncol(validation)]
+
+
+```
+
+## Partion Training Data
+Here I will do 70/30 split of the training data into train and test sets.
+
+```{r}
+set.seed(100)
+t_idx <- createDataPartition(training$classe, p=0.7, list=F)
+train <- training[t_idx,]
+test <- training[-t_idx,]
+
+```
+
+# Train Random Forest Model 
+Since Random Forest is known for its high accuracy, and I really don't mind spending long computing time, here I will just go for RF directly. 
+
+First attemp was use `caret` package default bootstrap resampling to build a random forest model using the train set.   
+Second attemp was using 10 fold cross-validation as the resampling method in `caret`.   
+
+In order to speed up the model training, I used `doParallel` package for muiti-core computation and it works for windows machine!   
+
+To avoid having to run the time-consuming modeling again when output the Rmarkdown to html, I saved the model objects on the hard drive using `saveRDS`. To `knit` the html file, I commented out the modelling codes, and used `readRDS` to load the model directly from hard drive.   
+
+## Train RF with Bootstrap Resampling
+
+```{r, message=FALSE, warning=FALSE}
+####register multicores for parallel processig####
+library(parallel)
+library(doParallel)
+cluster <- makeCluster(detectCores() - 1) # convention to leave 1 core for OS
+registerDoParallel(cluster)
+###############
+
+####the model_building code below took very long to finish, therefore
+###I saved the fitted model, without having to run it again
+###when generate the Rmarkdown to html.
+# try the default resampling method in caret 
+set.seed(1001)
+# md_rf_bt <- train(classe~., data=train,
+#             method = "rf")
+# 
+# saveRDS(md_rf_bt, "md_rf_bt.rds")
+
+##load the fitted random foest model
+md_rf_bt <- readRDS("md_rf_bt.rds")
+
+###Deregister multi-core###
+stopCluster(cluster)
+registerDoSEQ()
+###
+```
+
+
+Now check the out of sample accuracy using the test set that we splitted before the modelling.  
+```{r, message=FALSE, warning=FALSE}
+pred_bt <- predict(md_rf_bt, test)
+confusionMatrix(pred_bt, test$classe)
+```
+
+Random Forest works really well on this dataset. This model achieved accuracy of 0.9932 on the test set.   
+Do we really need to try cross-validation at all?  Well, for the sake of curisoity, let's give 10 fold cross-validation a spin. 
+
+## Train RF with cross-validation
+
+10-fold cross-validation is used as resampling method in `caret` `trControl`.  
+
+```{r, message=FALSE, warning=FALSE}
+cluster <- makeCluster(detectCores() - 1) # convention to leave 1 core for OS
+registerDoParallel(cluster)
+
+#10 cross-validation
+set.seed(1002)
+fitControl <- trainControl(## 10-fold CV
+                           method = "cv",
+                           number = 10,
+                           allowParallel = T)
+
+# md_rf_cv <- train(classe~., data=train, 
+#              method = "rf",
+#              trControl=fitControl)
+
+#saveRDS(md_rf_cv, "md_rf_cv.rds")
+
+md_rf_cv <- readRDS("md_rf_cv.rds")
+
+###Deregister multi-core###
+stopCluster(cluster)
+registerDoSEQ()
+###
+```
+Check the out of sample accuracy on test set.
+
+```{r, message=FALSE, warning=FALSE}
+
+pred_cv <- predict(md_rf_cv, test)
+confusionMatrix(pred_cv, test$classe)
+```
+
+Well, the model built through 10 fold cross-validation has marginally higher accuracy (0.9934 vs 0.9932) versus the model built through bootstrap resampling. Hence I will use this model to continue on the test set. 
+
+
